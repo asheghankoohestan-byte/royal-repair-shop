@@ -911,7 +911,7 @@ setup_database()
 root = tk.Tk()
 root.title("مدیریت تعمیرگاه رویال")
 root.geometry("1280x820")
-root.minsize(1000, 680)
+root.minsize(900, 580)
 try:
     root.state("zoomed")
 except tk.TclError:
@@ -1208,38 +1208,38 @@ home_tab.grid_rowconfigure(3, weight=1)
 
 home_heading = tk.Label(
     home_tab, text="پنل اصلی مدیریت تعمیرگاه رویال",
-    font=(default_font, 17, "bold"), bg="#f3f6fb", fg="#17365d"
+    font=(default_font, 14, "bold"), bg="#f3f6fb", fg="#17365d"
 )
-home_heading.grid(row=0, column=0, sticky="ew", padx=16, pady=(10, 2))
+home_heading.grid(row=0, column=0, sticky="ew", padx=10, pady=(4, 1))
 
 tk.Label(
     home_tab, text="برای ورود به هر بخش، از دکمه‌های زیر استفاده کنید.",
-    font=(default_font, 10), bg="#f3f6fb", fg="#53657d"
-).grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 8))
+    font=(default_font, 9), bg="#f3f6fb", fg="#53657d"
+).grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 3))
 
 home_cards = tk.Frame(home_tab, bg="#f3f6fb")
-home_cards.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 8))
+home_cards.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 3))
 for card_col in range(3):
     home_cards.grid_columnconfigure(card_col, weight=1, uniform="home_cards")
 
 def home_card(parent, title, description, button_text, command, accent, column):
     card = tk.Frame(
-        parent, bg="white", padx=12, pady=10,
+        parent, bg="white", padx=7, pady=5,
         highlightbackground="#d5deea", highlightthickness=1
     )
-    card.grid(row=0, column=column, sticky="nsew", padx=6, pady=3)
+    card.grid(row=0, column=column, sticky="nsew", padx=4, pady=2)
     tk.Label(
-        card, text=title, font=(default_font, 12, "bold"),
+        card, text=title, font=(default_font, 10, "bold"),
         bg="white", fg=accent, anchor="center"
-    ).pack(fill="x", pady=(1, 5))
+    ).pack(fill="x", pady=(0, 2))
     tk.Label(
         card, text=description, font=(default_font, 9),
         bg="white", fg="#53657d", justify="center",
-        anchor="center", wraplength=320, height=2
-    ).pack(fill="x", pady=(0, 7))
+        anchor="center", wraplength=320, height=1
+    ).pack(fill="x", pady=(0, 3))
     ttk.Button(
         card, text=button_text, command=command, style="Action.TButton"
-    ).pack(fill="x", ipady=3)
+    ).pack(fill="x", ipady=0)
 
 home_card(
     home_cards, "ثبت و پیگیری دستگاه",
@@ -1263,10 +1263,10 @@ home_card(
 # Branch summary occupies the remaining flexible area.
 branch_summary_frame = tk.LabelFrame(
     home_tab, text="آمار دستگاه‌ها به تفکیک شعبه",
-    font=(default_font, 10, "bold"), bg="#f3f6fb", padx=9, pady=6
+    font=(default_font, 9, "bold"), bg="#f3f6fb", padx=6, pady=3
 )
 branch_summary_frame.grid(
-    row=3, column=0, sticky="nsew", padx=24, pady=(2, 7)
+    row=3, column=0, sticky="nsew", padx=12, pady=(1, 3)
 )
 branch_summary_frame.grid_columnconfigure(0, weight=1)
 branch_summary_frame.grid_rowconfigure(1, weight=1)
@@ -1274,9 +1274,9 @@ branch_summary_frame.grid_rowconfigure(1, weight=1)
 tk.Label(
     branch_summary_frame,
     text="نام همه شعبه‌های ثبت‌شده، تعداد کل دستگاه‌ها و تعداد دستگاه‌های آماده تحویل یا تحویل‌شده",
-    bg="#f3f6fb", fg="#53657d", font=(default_font, 9),
+    bg="#f3f6fb", fg="#53657d", font=(default_font, 8),
     anchor="e", justify="right"
-).grid(row=0, column=0, sticky="ew", pady=(0, 4))
+).grid(row=0, column=0, sticky="ew", pady=(0, 2))
 
 branch_table_frame = tk.Frame(branch_summary_frame, bg="#f3f6fb")
 branch_table_frame.grid(row=1, column=0, sticky="nsew")
@@ -1287,7 +1287,7 @@ branch_summary_tree = ttk.Treeview(
     branch_table_frame,
     columns=("branch", "total", "repaired"),
     show="headings",
-    height=4
+    height=2
 )
 branch_summary_tree.heading("branch", text="نام شعبه")
 branch_summary_tree.heading("total", text="تعداد کل دستگاه‌ها")
@@ -1302,26 +1302,26 @@ branch_y_scroll = ttk.Scrollbar(
 branch_summary_tree.configure(yscrollcommand=branch_y_scroll.set)
 branch_summary_tree.grid(row=0, column=0, sticky="nsew")
 branch_y_scroll.grid(row=0, column=1, sticky="ns")
-style.configure("BranchSummary.Treeview", rowheight=30)
+style.configure("BranchSummary.Treeview", rowheight=23)
 branch_summary_tree.configure(style="BranchSummary.Treeview")
 
-home_stats = tk.Frame(home_tab, bg="#e6edf7", padx=10, pady=7)
-home_stats.grid(row=4, column=0, sticky="ew", padx=24, pady=(0, 9))
+home_stats = tk.Frame(home_tab, bg="#e6edf7", padx=7, pady=3)
+home_stats.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 3))
 for stat_col in range(6):
     home_stats.grid_columnconfigure(stat_col, weight=1)
 
 tk.Label(home_stats, text="دستگاه‌های ثبت‌شده:", bg="#e6edf7",
-         font=(default_font, 9)).grid(row=0, column=5, padx=4, sticky="e")
+         font=(default_font, 8)).grid(row=0, column=5, padx=4, sticky="e")
 tk.Label(home_stats, textvariable=total_value, bg="#e6edf7",
-         fg="#17365d", font=(default_font, 11, "bold")).grid(row=0, column=4, padx=4)
+         fg="#17365d", font=(default_font, 9, "bold")).grid(row=0, column=4, padx=4)
 tk.Label(home_stats, text="اقلام انبار:", bg="#e6edf7",
-         font=(default_font, 9)).grid(row=0, column=3, padx=4, sticky="e")
+         font=(default_font, 8)).grid(row=0, column=3, padx=4, sticky="e")
 tk.Label(home_stats, textvariable=inventory_count_var, bg="#e6edf7",
-         fg="#16845b", font=(default_font, 11, "bold")).grid(row=0, column=2, padx=4)
+         fg="#16845b", font=(default_font, 9, "bold")).grid(row=0, column=2, padx=4)
 tk.Label(home_stats, text="اقلام در حداقل موجودی:", bg="#e6edf7",
-         font=(default_font, 9)).grid(row=0, column=1, padx=4, sticky="e")
+         font=(default_font, 8)).grid(row=0, column=1, padx=4, sticky="e")
 tk.Label(home_stats, textvariable=low_stock_var, bg="#e6edf7",
-         fg="#c44747", font=(default_font, 11, "bold")).grid(row=0, column=0, padx=4)
+         fg="#c44747", font=(default_font, 9, "bold")).grid(row=0, column=0, padx=4)
 
 inventory_summary = tk.Frame(inventory_tab, bg="#e6edf7", padx=10, pady=8)
 inventory_summary.pack(fill="x", padx=10, pady=5)
@@ -1458,21 +1458,21 @@ settings_note.grid(row=2, column=0, columnspan=4, sticky="ew", padx=8, pady=(4, 
 
 low_stock_panel = tk.LabelFrame(
     home_tab, text="هشدار کالاهای کم‌موجودی",
-    font=(default_font, 10, "bold"), bg="#fff5f5", fg="#b00000",
-    padx=10, pady=7
+    font=(default_font, 9, "bold"), bg="#fff5f5", fg="#b00000",
+    padx=7, pady=3
 )
-low_stock_panel.grid(row=5, column=0, sticky="ew", padx=24, pady=(0, 8))
+low_stock_panel.grid(row=5, column=0, sticky="ew", padx=12, pady=(0, 3))
 
 tk.Label(
     low_stock_panel, text="کالاهایی که موجودی آن‌ها به حداقل یا کمتر رسیده است:",
-    bg="#fff5f5", fg="#b00000", font=(default_font, 9, "bold")
-).pack(anchor="e", pady=(0, 5))
+    bg="#fff5f5", fg="#b00000", font=(default_font, 8, "bold")
+).pack(anchor="e", pady=(0, 2))
 
 low_stock_list_frame = tk.Frame(low_stock_panel, bg="#fff5f5")
 low_stock_list_frame.pack(fill="x")
 low_stock_scroll = ttk.Scrollbar(low_stock_list_frame, orient="vertical")
 low_stock_listbox = tk.Listbox(
-    low_stock_list_frame, height=3, font=(default_font, 9),
+    low_stock_list_frame, height=2, font=(default_font, 8),
     fg="#b00000", bg="#fffafa", relief="solid", bd=1,
     justify="right", yscrollcommand=low_stock_scroll.set
 )
