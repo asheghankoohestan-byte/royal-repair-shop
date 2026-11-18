@@ -3,7 +3,16 @@ from tkinter import ttk, messagebox, simpledialog, filedialog
 import sqlite3
 from pathlib import Path
 from datetime import date, datetime
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import urllib.request
 
+APP_VERSION = "1.1.0"
+UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/asheghankoohestan-byte/royal-repair-shop/main/version.json"
 DB = Path(__file__).with_name("tamirat.db")
 
 
@@ -140,6 +149,132 @@ def restore_database():
                             "اطلاعات با موفقیت بازیابی شد. نسخه قبلی نیز جداگانه نگهداری شده است.")
     except Exception as exc:
         messagebox.showerror("خطا در بازیابی", f"بازیابی انجام نشد:\\n{exc}")
+
+
+
+def _version_parts(value):
+    """Convert a dotted version string into comparable integer parts."""
+    try:
+        return tuple(int(part) for part in str(value).strip().split("."))
+    except (TypeError, ValueError):
+        raise ValueError("شماره نسخه در فایل انتشار معتبر نیست.")
+
+
+def check_for_updates():
+    """Download and stage a verified update, back up SQLite, then restart safely."""
+    staged_path = None
+    try:
+        request = urllib.request.Request(
+            UPDATE_MANIFEST_URL,
+            headers={"User-Agent": "RoyalRepairShop-Updater"}
+        )
+        with urllib.request.urlopen(request, timeout=20) as response:
+            manifest = json.loads(response.read().decode("utf-8"))
+
+        latest = str(manifest.get("version", "")).strip()
+        filename = str(manifest.get("file", "")).strip()
+        expected_hash = str(manifest.get("sha256", "")).strip().lower()
+        if not latest or not filename or Path(filename).name != filename:
+            raise ValueError("اطلاعات فایل نسخه جدید کامل یا معتبر نیست.")
+        if len(expected_hash) != 64:
+            raise ValueError("شناسه صحت فایل نسخه جدید معتبر نیست.")
+
+        if _version_parts(latest) <= _version_parts(APP_VERSION):
+            messagebox.showinfo("به‌روزرسانی", f"برنامه شما به‌روز است. نسخه فعلی: {APP_VERSION}")
+            return
+
+        if not messagebox.askyesno(
+            "نسخه جدید موجود است",
+            f"نسخه فعلی: {APP_VERSION}\nنسخه جدید: {latest}\n\n"
+            "ابتدا از اطلاعات پشتیبان تهیه می‌شود، سپس برنامه بسته و نسخه جدید اجرا خواهد شد. ادامه می‌دهید؟"
+        ):
+            return
+
+        download_url = (
+            "https://raw.githubusercontent.com/asheghankoohestan-byte/"
+            "royal-repair-shop/main/" + filename
+        )
+        request = urllib.request.Request(
+            download_url, headers={"User-Agent": "RoyalRepairShop-Updater"}
+        )
+        with urllib.request.urlopen(request, timeout=60) as response:
+            new_code = response.read()
+
+        if hashlib.sha256(new_code).hexdigest() != expected_hash:
+            raise ValueError("بررسی صحت فایل ناموفق بود؛ فایل اجرا یا نصب نشد.")
+        if not new_code.strip():
+            raise ValueError("فایل نسخه جدید خالی است.")
+
+        app_path = Path(__file__).resolve()
+        staged_path = app_path.with_name(app_path.name + ".download")
+        staged_path.write_bytes(new_code)
+
+        if DB.exists():
+            backup_dir = DB.parent / "پشتیبان‌ها"
+            backup_dir.mkdir(exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = backup_dir / f"tamirat_before_update_{stamp}.db"
+            with sqlite3.connect(DB) as source, sqlite3.connect(backup_path) as destination:
+                source.backup(destination)
+            with sqlite3.connect(
+                f"file:{backup_path.resolve().as_posix()}?mode=ro", uri=True
+            ) as check:
+                result = check.execute("PRAGMA quick_check").fetchone()
+                if not result or result[0] != "ok":
+                    raise sqlite3.DatabaseError("بررسی سلامت نسخه پشتیبان موفق نبود.")
+
+        helper_lines = [
+            "import os, sys, time, subprocess",
+            "pid, staged, target = int(sys.argv[1]), sys.argv[2], sys.argv[3]",
+            "while True:",
+            "    try:",
+            "        os.kill(pid, 0)",
+            "        time.sleep(0.5)",
+            "    except OSError:",
+            "        break",
+            "try:",
+            "    os.replace(staged, target)",
+            "    subprocess.Popen([sys.executable, target], cwd=os.path.dirname(target))",
+            "except Exception as exc:",
+            "    with open(target + '.update-error.txt', 'w', encoding='utf-8') as log:",
+            "        log.write(str(exc))",
+            "    raise",
+            "finally:",
+            "    try: os.remove(__file__)",
+            "    except OSError: pass",
+        ]
+        helper_fd, helper_name = tempfile.mkstemp(
+            prefix="royal_updater_", suffix=".py", dir=str(app_path.parent)
+        )
+        with os.fdopen(helper_fd, "w", encoding="utf-8") as helper_file:
+            helper_file.write("\n".join(helper_lines) + "\n")
+
+        creation_flags = 0
+        if os.name == "nt":
+            creation_flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+                subprocess, "DETACHED_PROCESS", 0
+            )
+        subprocess.Popen(
+            [sys.executable, helper_name, str(os.getpid()), str(staged_path), str(app_path)],
+            cwd=str(app_path.parent), creationflags=creation_flags
+        )
+        messagebox.showinfo(
+            "آماده‌سازی به‌روزرسانی",
+            "نسخه پشتیبان تهیه شد. برنامه اکنون بسته می‌شود و نسخه جدید پس از جایگزینی اجرا خواهد شد."
+        )
+        root.destroy()
+
+    except Exception as exc:
+        if staged_path is not None:
+            try:
+                staged_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        messagebox.showerror(
+            "خطا در به‌روزرسانی",
+            f"به‌روزرسانی انجام نشد و برنامه فعلی حفظ شد.\n{exc}"
+        )
+
 
 
 def connect():
@@ -813,6 +948,8 @@ tk.Label(header_text, text="مدیریت تعمیرگاه رویال",
 jalali_header_var = tk.StringVar()
 tk.Label(header_text, textvariable=jalali_header_var,
          font=(default_font, 11, "bold"), bg="#f3f6fb", fg="#16845b").pack(anchor="e")
+tk.Label(header_text, text=f"نسخه برنامه: {APP_VERSION}",
+         font=(default_font, 9), bg="#f3f6fb", fg="#53657d").pack(anchor="e")
 
 def update_jalali_header():
     jalali_header_var.set("امروز: " + jalali_today())
@@ -1332,6 +1469,10 @@ ttk.Button(
 ttk.Button(
     backup_buttons, text="بازیابی اطلاعات", style="Action.TButton",
     command=restore_database
+).pack(side="right", padx=5)
+ttk.Button(
+    backup_buttons, text="بررسی و دریافت به‌روزرسانی", style="Action.TButton",
+    command=check_for_updates
 ).pack(side="right", padx=5)
 
 def apply_appearance_settings(show_message=True):
