@@ -11,7 +11,7 @@ import sys
 import tempfile
 import urllib.request
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/asheghankoohestan-byte/royal-repair-shop/main/version.json"
 DB = Path(__file__).with_name("tamirat.db")
 
@@ -160,34 +160,64 @@ def _version_parts(value):
         raise ValueError("شماره نسخه در فایل انتشار معتبر نیست.")
 
 
-def check_for_updates():
-    """Download and stage a verified update, back up SQLite, then restart safely."""
+def _update_state_path():
+    return Path(__file__).with_name("update_state.json")
+
+
+def _record_update_check():
+    try:
+        _update_state_path().write_text(
+            json.dumps({"last_check": datetime.now().astimezone().isoformat(timespec="minutes")},
+                       ensure_ascii=False), encoding="utf-8"
+        )
+    except OSError:
+        pass
+
+
+def _last_update_check_text():
+    try:
+        state = json.loads(_update_state_path().read_text(encoding="utf-8"))
+        value = state.get("last_check")
+        if value:
+            return datetime.fromisoformat(value).astimezone().strftime("%Y/%m/%d - %H:%M")
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    return "هنوز بررسی نشده"
+
+
+def check_for_updates(show_current=True):
+    """Check releases, show notes, and stage a verified update after consent."""
     staged_path = None
     try:
         request = urllib.request.Request(
-            UPDATE_MANIFEST_URL,
-            headers={"User-Agent": "RoyalRepairShop-Updater"}
+            UPDATE_MANIFEST_URL, headers={"User-Agent": "RoyalRepairShop-Updater"}
         )
         with urllib.request.urlopen(request, timeout=20) as response:
             manifest = json.loads(response.read().decode("utf-8"))
+        _record_update_check()
+        if "last_update_check_var" in globals():
+            last_update_check_var.set("آخرین بررسی: " + _last_update_check_text())
 
         latest = str(manifest.get("version", "")).strip()
         filename = str(manifest.get("file", "")).strip()
         expected_hash = str(manifest.get("sha256", "")).strip().lower()
+        notes = manifest.get("changelog", [])
         if not latest or not filename or Path(filename).name != filename:
             raise ValueError("اطلاعات فایل نسخه جدید کامل یا معتبر نیست.")
         if len(expected_hash) != 64:
             raise ValueError("شناسه صحت فایل نسخه جدید معتبر نیست.")
-
         if _version_parts(latest) <= _version_parts(APP_VERSION):
-            messagebox.showinfo("به‌روزرسانی", f"برنامه شما به‌روز است. نسخه فعلی: {APP_VERSION}")
+            if show_current:
+                messagebox.showinfo("به‌روزرسانی", f"برنامه شما به‌روز است. نسخه فعلی: {APP_VERSION}")
             return
 
-        if not messagebox.askyesno(
-            "نسخه جدید موجود است",
+        notes_text = "\n".join("• " + str(item) for item in notes) if isinstance(notes, list) else ""
+        prompt = (
             f"نسخه فعلی: {APP_VERSION}\nنسخه جدید: {latest}\n\n"
-            "ابتدا از اطلاعات پشتیبان تهیه می‌شود، سپس برنامه بسته و نسخه جدید اجرا خواهد شد. ادامه می‌دهید؟"
-        ):
+            + ("تغییرات این نسخه:\n" + notes_text + "\n\n" if notes_text else "")
+            + "ابتدا از اطلاعات پشتیبان تهیه می‌شود، سپس برنامه بسته و نسخه جدید اجرا خواهد شد. ادامه می‌دهید؟"
+        )
+        if not messagebox.askyesno("نسخه جدید موجود است", prompt):
             return
 
         download_url = (
@@ -199,7 +229,6 @@ def check_for_updates():
         )
         with urllib.request.urlopen(request, timeout=60) as response:
             new_code = response.read()
-
         if hashlib.sha256(new_code).hexdigest() != expected_hash:
             raise ValueError("بررسی صحت فایل ناموفق بود؛ فایل اجرا یا نصب نشد.")
         if not new_code.strip():
@@ -208,7 +237,6 @@ def check_for_updates():
         app_path = Path(__file__).resolve()
         staged_path = app_path.with_name(app_path.name + ".download")
         staged_path.write_bytes(new_code)
-
         if DB.exists():
             backup_dir = DB.parent / "پشتیبان‌ها"
             backup_dir.mkdir(exist_ok=True)
@@ -216,9 +244,7 @@ def check_for_updates():
             backup_path = backup_dir / f"tamirat_before_update_{stamp}.db"
             with sqlite3.connect(DB) as source, sqlite3.connect(backup_path) as destination:
                 source.backup(destination)
-            with sqlite3.connect(
-                f"file:{backup_path.resolve().as_posix()}?mode=ro", uri=True
-            ) as check:
+            with sqlite3.connect(f"file:{backup_path.resolve().as_posix()}?mode=ro", uri=True) as check:
                 result = check.execute("PRAGMA quick_check").fetchone()
                 if not result or result[0] != "ok":
                     raise sqlite3.DatabaseError("بررسی سلامت نسخه پشتیبان موفق نبود.")
@@ -248,7 +274,6 @@ def check_for_updates():
         )
         with os.fdopen(helper_fd, "w", encoding="utf-8") as helper_file:
             helper_file.write("\n".join(helper_lines) + "\n")
-
         creation_flags = 0
         if os.name == "nt":
             creation_flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
@@ -263,7 +288,6 @@ def check_for_updates():
             "نسخه پشتیبان تهیه شد. برنامه اکنون بسته می‌شود و نسخه جدید پس از جایگزینی اجرا خواهد شد."
         )
         root.destroy()
-
     except Exception as exc:
         if staged_path is not None:
             try:
@@ -1475,6 +1499,12 @@ ttk.Button(
     command=check_for_updates
 ).pack(side="right", padx=5)
 
+last_update_check_var = tk.StringVar(value="آخرین بررسی: " + _last_update_check_text())
+tk.Label(
+    backup_panel, textvariable=last_update_check_var,
+    bg="#f3f6fb", fg="#53657d", font=(default_font, 9)
+).pack(anchor="e", pady=(6, 0))
+
 def apply_appearance_settings(show_message=True):
     family = font_family_var.get()
     size = int(font_size_var.get())
@@ -1810,4 +1840,5 @@ refresh_device_repairs()
 refresh_reports()
 notebook.select(home_tab)
 root.protocol("WM_DELETE_WINDOW", handle_window_close)
+root.after(2500, lambda: check_for_updates(show_current=False))
 root.mainloop()
