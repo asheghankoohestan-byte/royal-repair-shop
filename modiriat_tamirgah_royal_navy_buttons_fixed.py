@@ -1453,7 +1453,7 @@ settings_note = tk.Label(
 settings_note.grid(row=2, column=0, columnspan=4, sticky="ew", padx=8, pady=(4, 8))
 
 low_stock_panel = tk.LabelFrame(
-    settings_tab, text="هشدار کالاهای کم‌موجودی",
+    home_tab, text="هشدار کالاهای کم‌موجودی",
     font=(default_font, 10, "bold"), bg="#fff5f5", fg="#b00000",
     padx=10, pady=7
 )
