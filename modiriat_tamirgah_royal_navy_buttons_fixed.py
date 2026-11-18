@@ -1461,7 +1461,7 @@ low_stock_panel = tk.LabelFrame(
     font=(default_font, 10, "bold"), bg="#fff5f5", fg="#b00000",
     padx=10, pady=7
 )
-low_stock_panel.pack(fill="x", padx=12, pady=5)
+low_stock_panel.grid(row=5, column=0, sticky="ew", padx=24, pady=(0, 8))
 
 tk.Label(
     low_stock_panel, text="کالاهایی که موجودی آن‌ها به حداقل یا کمتر رسیده است:",
