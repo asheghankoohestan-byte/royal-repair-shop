@@ -13,7 +13,11 @@ import urllib.request
 
 APP_VERSION = "1.3.1"
 UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/asheghankoohestan-byte/royal-repair-shop/main/version.json?v=1.3.1"
-DB = Path(__file__).with_name("tamirat.db")
+# Keep the database beside the executable in frozen builds, not inside PyInstaller's temporary folder.
+if getattr(sys, "frozen", False):
+    DB = Path(sys.executable).resolve().with_name("tamirat.db")
+else:
+    DB = Path(__file__).resolve().with_name("tamirat.db")
 
 
 def gregorian_to_jalali(gy, gm, gd):
