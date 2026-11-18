@@ -11,8 +11,8 @@ import sys
 import tempfile
 import urllib.request
 
-APP_VERSION = "1.3.1"
-UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/asheghankoohestan-byte/royal-repair-shop/main/version.json?v=1.3.1"
+APP_VERSION = "1.3.2"
+UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/asheghankoohestan-byte/royal-repair-shop/main/version.json?v=1.3.2"
 # Keep the database beside the executable in frozen builds, not inside PyInstaller's temporary folder.
 if getattr(sys, "frozen", False):
     DB = Path(sys.executable).resolve().with_name("tamirat.db")
@@ -165,7 +165,8 @@ def _version_parts(value):
 
 
 def _update_state_path():
-    return Path(__file__).with_name("update_state.json")
+    base = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+    return base / "update_state.json"
 
 
 def _record_update_check():
@@ -224,10 +225,14 @@ def check_for_updates(show_current=True):
         if not messagebox.askyesno("نسخه جدید موجود است", prompt):
             return
 
-        download_url = (
-            "https://raw.githubusercontent.com/asheghankoohestan-byte/"
-            "royal-repair-shop/main/" + filename + "?v=1.3.1"
-        )
+        download_url = str(manifest.get("url", "")).strip()
+        if not download_url.startswith("https://"):
+            raise ValueError("نشانی دریافت نسخه جدید معتبر نیست.")
+        is_frozen = bool(getattr(sys, "frozen", False))
+        if is_frozen and not filename.lower().endswith(".exe"):
+            raise ValueError("فایل انتشار برای نسخه اجرایی ویندوز معتبر نیست.")
+        if not is_frozen and not filename.lower().endswith(".py"):
+            raise ValueError("فایل انتشار برای نسخه پایتون معتبر نیست.")
         request = urllib.request.Request(
             download_url, headers={"User-Agent": "RoyalRepairShop-Updater"}
         )
@@ -238,7 +243,7 @@ def check_for_updates(show_current=True):
         if not new_code.strip():
             raise ValueError("فایل نسخه جدید خالی است.")
 
-        app_path = Path(__file__).resolve()
+        app_path = Path(sys.executable).resolve() if is_frozen else Path(__file__).resolve()
         staged_path = app_path.with_name(app_path.name + ".download")
         staged_path.write_bytes(new_code)
         if DB.exists():
@@ -253,40 +258,69 @@ def check_for_updates(show_current=True):
                 if not result or result[0] != "ok":
                     raise sqlite3.DatabaseError("بررسی سلامت نسخه پشتیبان موفق نبود.")
 
-        helper_lines = [
-            "import os, sys, time, subprocess",
-            "pid, staged, target = int(sys.argv[1]), sys.argv[2], sys.argv[3]",
-            "while True:",
-            "    try:",
-            "        os.kill(pid, 0)",
-            "        time.sleep(0.5)",
-            "    except OSError:",
-            "        break",
-            "try:",
-            "    os.replace(staged, target)",
-            "    subprocess.Popen([sys.executable, target], cwd=os.path.dirname(target))",
-            "except Exception as exc:",
-            "    with open(target + '.update-error.txt', 'w', encoding='utf-8') as log:",
-            "        log.write(str(exc))",
-            "    raise",
-            "finally:",
-            "    try: os.remove(__file__)",
-            "    except OSError: pass",
-        ]
-        helper_fd, helper_name = tempfile.mkstemp(
-            prefix="royal_updater_", suffix=".py", dir=str(app_path.parent)
-        )
-        with os.fdopen(helper_fd, "w", encoding="utf-8") as helper_file:
-            helper_file.write("\n".join(helper_lines) + "\n")
-        creation_flags = 0
-        if os.name == "nt":
-            creation_flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
-                subprocess, "DETACHED_PROCESS", 0
+        if is_frozen and os.name == "nt":
+            helper_text = r"""@echo off
+set "PID=%~1"
+set "STAGED=%~2"
+set "TARGET=%~3"
+:waitloop
+tasklist /FI "PID eq %PID%" | find "%PID%" >nul
+if not errorlevel 1 (timeout /t 1 /nobreak >nul & goto waitloop)
+move /Y "%STAGED%" "%TARGET%" >nul
+if errorlevel 1 (echo Could not replace application > "%TARGET%.update-error.txt" & exit /b 1)
+start "" "%TARGET%"
+del "%~f0"
+"""
+            helper_fd, helper_name = tempfile.mkstemp(
+                prefix="royal_updater_", suffix=".cmd", dir=str(app_path.parent)
             )
-        subprocess.Popen(
-            [sys.executable, helper_name, str(os.getpid()), str(staged_path), str(app_path)],
-            cwd=str(app_path.parent), creationflags=creation_flags
-        )
+            with os.fdopen(helper_fd, "w", encoding="utf-8") as helper_file:
+                helper_file.write(helper_text)
+            creation_flags = (
+                getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                | getattr(subprocess, "DETACHED_PROCESS", 0)
+                | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            )
+            subprocess.Popen(
+                ["cmd.exe", "/c", helper_name, str(os.getpid()), str(staged_path), str(app_path)],
+                cwd=str(app_path.parent), creationflags=creation_flags
+            )
+        else:
+            helper_lines = [
+                "import os, sys, time, subprocess",
+                "pid, staged, target = int(sys.argv[1]), sys.argv[2], sys.argv[3]",
+                "while True:",
+                "    try:",
+                "        os.kill(pid, 0)",
+                "        time.sleep(0.5)",
+                "    except OSError:",
+                "        break",
+                "try:",
+                "    os.replace(staged, target)",
+                "    subprocess.Popen([sys.executable, target], cwd=os.path.dirname(target))",
+                "except Exception as exc:",
+                "    with open(target + '.update-error.txt', 'w', encoding='utf-8') as log:",
+                "        log.write(str(exc))",
+                "    raise",
+                "finally:",
+                "    try: os.remove(__file__)",
+                "    except OSError: pass",
+            ]
+            helper_fd, helper_name = tempfile.mkstemp(
+                prefix="royal_updater_", suffix=".py", dir=str(app_path.parent)
+            )
+            with os.fdopen(helper_fd, "w", encoding="utf-8") as helper_file:
+                helper_file.write("\\n".join(helper_lines) + "\\n")
+            creation_flags = 0
+            if os.name == "nt":
+                creation_flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+                    subprocess, "DETACHED_PROCESS", 0
+                )
+            subprocess.Popen(
+                [sys.executable, helper_name, str(os.getpid()), str(staged_path), str(app_path)],
+                cwd=str(app_path.parent), creationflags=creation_flags
+            )
+
         messagebox.showinfo(
             "آماده‌سازی به‌روزرسانی",
             "نسخه پشتیبان تهیه شد. برنامه اکنون بسته می‌شود و نسخه جدید پس از جایگزینی اجرا خواهد شد."
