@@ -11,8 +11,8 @@ import sys
 import tempfile
 import urllib.request
 
-APP_VERSION = "1.3.0"
-UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/asheghankoohestan-byte/royal-repair-shop/main/version.json"
+APP_VERSION = "1.3.1"
+UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/asheghankoohestan-byte/royal-repair-shop/main/version.json?v=1.3.1"
 DB = Path(__file__).with_name("tamirat.db")
 
 
@@ -222,7 +222,7 @@ def check_for_updates(show_current=True):
 
         download_url = (
             "https://raw.githubusercontent.com/asheghankoohestan-byte/"
-            "royal-repair-shop/main/" + filename
+            "royal-repair-shop/main/" + filename + "?v=1.3.1"
         )
         request = urllib.request.Request(
             download_url, headers={"User-Agent": "RoyalRepairShop-Updater"}
