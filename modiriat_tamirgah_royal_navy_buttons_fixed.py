@@ -204,8 +204,9 @@ def check_for_updates(show_current=True):
             last_update_check_var.set("آخرین بررسی: " + _last_update_check_text())
 
         latest = str(manifest.get("version", "")).strip()
-        filename = str(manifest.get("file", "")).strip()
-        expected_hash = str(manifest.get("sha256", "")).strip().lower()
+        is_frozen = bool(getattr(sys, "frozen", False))
+        filename = str(manifest.get("exe_file" if is_frozen else "source_file", "")).strip()
+        expected_hash = str(manifest.get("exe_sha256" if is_frozen else "source_sha256", "")).strip().lower()
         notes = manifest.get("changelog", [])
         if not latest or not filename or Path(filename).name != filename:
             raise ValueError("اطلاعات فایل نسخه جدید کامل یا معتبر نیست.")
@@ -225,10 +226,9 @@ def check_for_updates(show_current=True):
         if not messagebox.askyesno("نسخه جدید موجود است", prompt):
             return
 
-        download_url = str(manifest.get("url", "")).strip()
+        download_url = str(manifest.get("exe_url" if is_frozen else "source_url", "")).strip()
         if not download_url.startswith("https://"):
             raise ValueError("نشانی دریافت نسخه جدید معتبر نیست.")
-        is_frozen = bool(getattr(sys, "frozen", False))
         if is_frozen and not filename.lower().endswith(".exe"):
             raise ValueError("فایل انتشار برای نسخه اجرایی ویندوز معتبر نیست.")
         if not is_frozen and not filename.lower().endswith(".py"):
@@ -310,7 +310,7 @@ del "%~f0"
                 prefix="royal_updater_", suffix=".py", dir=str(app_path.parent)
             )
             with os.fdopen(helper_fd, "w", encoding="utf-8") as helper_file:
-                helper_file.write("\\n".join(helper_lines) + "\\n")
+                helper_file.write("\n".join(helper_lines) + "\n")
             creation_flags = 0
             if os.name == "nt":
                 creation_flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
