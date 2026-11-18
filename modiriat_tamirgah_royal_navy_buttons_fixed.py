@@ -637,7 +637,7 @@ def refresh_inventory():
             SELECT id, item_name, item_code, category, quantity, unit, min_quantity
             FROM inventory ORDER BY item_name COLLATE NOCASE
         """).fetchall()
-    low_items = [row for row in rows if int(row[4]) == 0]
+    low_items = [row for row in rows if int(row[4]) <= int(row[6])]
     for row in rows:
         is_low = int(row[4]) <= int(row[6])
         inventory_table.insert("", "end", values=row,
@@ -653,10 +653,12 @@ def refresh_inventory():
         if low_items:
             for item in low_items:
                 low_stock_listbox.insert(
-                    tk.END, f"• {item[1]}   |   موجودی: صفر {item[5]}"
+                    tk.END,
+                    f"• {item[1]}   |   موجودی: {item[4]} {item[5]} "
+                    f"(حداقل: {item[6]} {item[5]})"
                 )
         else:
-            low_stock_listbox.insert(tk.END, "هیچ کالایی با موجودی صفر وجود ندارد.")
+            low_stock_listbox.insert(tk.END, "هیچ کالایی به حداقل موجودی نرسیده است.")
 
 
 def add_inventory_item():
@@ -1458,7 +1460,7 @@ low_stock_panel = tk.LabelFrame(
 low_stock_panel.pack(fill="x", padx=12, pady=5)
 
 tk.Label(
-    low_stock_panel, text="نام کالاهایی که موجودی آن‌ها صفر شده است:",
+    low_stock_panel, text="کالاهایی که موجودی آن‌ها به حداقل یا کمتر رسیده است:",
     bg="#fff5f5", fg="#b00000", font=(default_font, 9, "bold")
 ).pack(anchor="e", pady=(0, 5))
 
@@ -1473,6 +1475,26 @@ low_stock_listbox = tk.Listbox(
 low_stock_scroll.configure(command=low_stock_listbox.yview)
 low_stock_listbox.pack(side="right", fill="x", expand=True)
 low_stock_scroll.pack(side="left", fill="y")
+
+
+def animate_low_stock_warning():
+    """Blink the low-stock warning list while any item is at/below its minimum."""
+    try:
+        if not low_stock_listbox.winfo_exists():
+            return
+        has_low_stock = low_stock_var.get() != "0"
+        current_bg = low_stock_listbox.cget("background")
+        if has_low_stock:
+            if current_bg == "#fffafa":
+                low_stock_listbox.configure(bg="#ffd6d6", fg="#8b0000")
+            else:
+                low_stock_listbox.configure(bg="#fffafa", fg="#b00000")
+        else:
+            low_stock_listbox.configure(bg="#fffafa", fg="#b00000")
+        root.after(650, animate_low_stock_warning)
+    except tk.TclError:
+        return
+
 
 backup_panel = tk.LabelFrame(
     settings_tab, text="پشتیبان‌گیری و بازیابی اطلاعات",
@@ -1836,6 +1858,7 @@ def refresh_reports():
 apply_appearance_settings(show_message=False)
 refresh_table()
 refresh_inventory()
+root.after(650, animate_low_stock_warning)
 refresh_dashboard()
 refresh_repair_part_choices()
 refresh_device_repairs()
