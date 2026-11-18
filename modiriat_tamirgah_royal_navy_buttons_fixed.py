@@ -11,7 +11,7 @@ import sys
 import tempfile
 import urllib.request
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/asheghankoohestan-byte/royal-repair-shop/main/version.json"
 DB = Path(__file__).with_name("tamirat.db")
 
@@ -1437,7 +1437,7 @@ font_size_box = add_setting_field(0, 1, "اندازه فونت", font_size_var,
 button_size_box = add_setting_field(0, 0, "اندازه دکمه‌ها", button_size_var,
                                     ["کوچک", "متوسط", "بزرگ"], 14)
 theme_box = add_setting_field(1, 2, "پوسته رنگی", theme_var,
-                              ["سورمه‌ای", "آبی روشن", "تیره", "سبز", "بنفش"], 16)
+                              ["سورمه‌ای", "آبی روشن", "تیره", "مشکی", "سبز", "بنفش", "ویندوز ۷", "آفیس ۲۰۱۰", "آفیس ۲۰۱۳", "آفیس ۲۰۱۶", "آفیس ۲۰۲۱", "فیروزه‌ای", "قرمز", "طلایی", "خاکستری"], 18)
 windows_theme_box = add_setting_field(
     1, 1, "سبک کنترل‌های ویندوز", windows_theme_var,
     ["ویندوز مدرن", "ویندوز کلاسیک", "ویندوز XP", "سازگار با همه سیستم‌ها"], 22
@@ -1476,34 +1476,26 @@ low_stock_scroll.pack(side="left", fill="y")
 
 backup_panel = tk.LabelFrame(
     settings_tab, text="پشتیبان‌گیری و بازیابی اطلاعات",
-    font=(default_font, 10, "bold"), bg="#f3f6fb", padx=10, pady=8
+    font=(default_font, 10, "bold"), bg="#f3f6fb", padx=8, pady=4
 )
-backup_panel.pack(fill="x", padx=12, pady=5)
-tk.Label(
-    backup_panel,
-    text="برای حفظ اطلاعات، به‌صورت منظم نسخه پشتیبان تهیه کنید.",
-    bg="#f3f6fb", fg="#53657d", font=(default_font, 9)
-).pack(anchor="e", pady=(0, 6))
-backup_buttons = tk.Frame(backup_panel, bg="#f3f6fb")
-backup_buttons.pack(anchor="e")
-ttk.Button(
-    backup_buttons, text="تهیه نسخه پشتیبان", style="Action.TButton",
-    command=backup_database
-).pack(side="right", padx=5)
-ttk.Button(
-    backup_buttons, text="بازیابی اطلاعات", style="Action.TButton",
-    command=restore_database
-).pack(side="right", padx=5)
-ttk.Button(
-    backup_buttons, text="بررسی و دریافت به‌روزرسانی", style="Action.TButton",
-    command=check_for_updates
-).pack(side="right", padx=5)
-
+backup_panel.pack(fill="x", padx=12, pady=3)
+backup_panel.columnconfigure(0, weight=1)
+backup_panel.columnconfigure(1, weight=0)
+backup_info = tk.Frame(backup_panel, bg="#f3f6fb")
+backup_info.grid(row=0, column=0, sticky="ew", padx=5, pady=2)
+tk.Label(backup_info, text="برای حفظ اطلاعات، مرتب نسخه پشتیبان تهیه کنید.",
+         bg="#f3f6fb", fg="#53657d", font=(default_font, 9)).pack(anchor="e")
 last_update_check_var = tk.StringVar(value="آخرین بررسی: " + _last_update_check_text())
-tk.Label(
-    backup_panel, textvariable=last_update_check_var,
-    bg="#f3f6fb", fg="#53657d", font=(default_font, 9)
-).pack(anchor="e", pady=(6, 0))
+tk.Label(backup_info, textvariable=last_update_check_var,
+         bg="#f3f6fb", fg="#53657d", font=(default_font, 9)).pack(anchor="e")
+backup_buttons = tk.Frame(backup_panel, bg="#f3f6fb")
+backup_buttons.grid(row=0, column=1, sticky="e", padx=4, pady=2)
+ttk.Button(backup_buttons, text="تهیه پشتیبان", style="Action.TButton",
+           command=backup_database).pack(side="right", padx=3)
+ttk.Button(backup_buttons, text="بازیابی اطلاعات", style="Action.TButton",
+           command=restore_database).pack(side="right", padx=3)
+ttk.Button(backup_buttons, text="بررسی به‌روزرسانی", style="Action.TButton",
+           command=check_for_updates).pack(side="right", padx=3)
 
 def apply_appearance_settings(show_message=True):
     family = font_family_var.get()
@@ -1582,7 +1574,17 @@ def apply_appearance_settings(show_message=True):
             "fg": "#49345f", "muted": "#6c5b7d", "accent": "#7652a3",
             "button": "#e2d8ef", "button_active": "#d2c2e5",
             "tree": "#ffffff", "select": "#d0bee5"
-        }
+        },
+        "مشکی": {"bg":"#111111","surface":"#1b1b1b","panel":"#292929","fg":"#f5f5f5","muted":"#cccccc","accent":"#ffffff","button":"#292929","button_active":"#454545","tree":"#1b1b1b","select":"#555555"},
+        "ویندوز ۷": {"bg":"#eaf3fb","surface":"#f8fcff","panel":"#d5e7f5","fg":"#183b59","muted":"#536d82","accent":"#2878b8","button":"#d5e7f5","button_active":"#b7d8ef","tree":"#f8fcff","select":"#9fc9e8"},
+        "آفیس ۲۰۱۰": {"bg":"#e8f1fa","surface":"#ffffff","panel":"#d2e2f2","fg":"#17365d","muted":"#53657d","accent":"#1f5f9d","button":"#d2e2f2","button_active":"#a9c8e5","tree":"#ffffff","select":"#a9c8e5"},
+        "آفیس ۲۰۱۳": {"bg":"#f4f4f4","surface":"#ffffff","panel":"#e5e5e5","fg":"#333333","muted":"#666666","accent":"#217346","button":"#e5e5e5","button_active":"#d2e8dc","tree":"#ffffff","select":"#b7d9c5"},
+        "آفیس ۲۰۱۶": {"bg":"#f5f5f5","surface":"#ffffff","panel":"#e7e7e7","fg":"#242424","muted":"#666666","accent":"#0078d4","button":"#e7e7e7","button_active":"#cce4f7","tree":"#ffffff","select":"#a9d3f2"},
+        "آفیس ۲۰۲۱": {"bg":"#f2f2f2","surface":"#ffffff","panel":"#e3e3e3","fg":"#202020","muted":"#666666","accent":"#6264a7","button":"#e3e3e3","button_active":"#d8d8f0","tree":"#ffffff","select":"#c5c5e4"},
+        "فیروزه‌ای": {"bg":"#e9f7f7","surface":"#ffffff","panel":"#d1eeee","fg":"#164b50","muted":"#527477","accent":"#008c95","button":"#d1eeee","button_active":"#b4e2e4","tree":"#ffffff","select":"#a9dfe1"},
+        "قرمز": {"bg":"#fbefef","surface":"#ffffff","panel":"#f2dada","fg":"#572323","muted":"#805858","accent":"#b83232","button":"#f2dada","button_active":"#e9bcbc","tree":"#ffffff","select":"#e8b4b4"},
+        "طلایی": {"bg":"#f8f3e7","surface":"#fffdf7","panel":"#eee3c8","fg":"#514326","muted":"#786b4c","accent":"#a77b22","button":"#eee3c8","button_active":"#e4d3a6","tree":"#fffdf7","select":"#e4d3a6"},
+        "خاکستری": {"bg":"#eeeeee","surface":"#ffffff","panel":"#dcdcdc","fg":"#333333","muted":"#666666","accent":"#666666","button":"#dcdcdc","button_active":"#c7c7c7","tree":"#ffffff","select":"#bcbcbc"}
     }
     palette = palettes[theme_var.get()]
     style.theme_use("clam")  # ثابت نگه داشتن رنگ پس‌زمینه دکمه‌ها در همه سیستم‌ها
